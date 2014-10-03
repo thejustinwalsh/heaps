@@ -421,7 +421,7 @@ class Library {
 		if( animNode != null ) for( cn in getChilds(animNode, "AnimationCurveNode") ) {
 			var model = getParent(cn, "Model",true);
 			if(model==null) continue; //morph support
-			
+
 			var c = getObjectCurve(curves, model, cn.getName(), animName);
 			if( c == null ) continue;
 			var data = getChilds(cn, "AnimationCurve");
@@ -961,8 +961,10 @@ class Library {
 				defaultModelMatrixes.get(m.name).wasRemoved = o.model.getId();
 			}
 			// set skin after materials
-			if( skinData.boundJoints.length > maxBonesPerSkin )
-				skinData.split(maxBonesPerSkin, Std.instance(skinData.primitive,h3d.prim.FBXModel).geom.getIndexes().vidx);
+			if( skinData.boundJoints.length > maxBonesPerSkin ) {
+				var idx = Std.instance(skinData.primitive, h3d.prim.FBXModel).geom.getIndexes();
+				skinData.split(maxBonesPerSkin, [for( i in idx.idx ) idx.vidx[i]]);
+			}
 			skin.setSkinData(skinData);
 		}
 
