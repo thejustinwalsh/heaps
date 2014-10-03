@@ -6,4 +6,5 @@ typedef EmbedOptions = {
 	?xbxFilter : String -> h3d.fbx.Data.FbxNode -> h3d.fbx.Data.FbxNode,
 	?tmpDir : String,
 	?fontsChars : String,
+	?altDir : String,
 }

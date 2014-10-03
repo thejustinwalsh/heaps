@@ -82,6 +82,11 @@ class FileTree {
 				var ext = extParts.join(".");
 				if( ignoredExt.exists(ext.toLowerCase()) )
 					continue;
+				if( options.altDir != null ) {
+					var altPath = this.path + "/" + options.altDir + relPath + "/" + f;
+					if( sys.FileSystem.exists(altPath) )
+						path = altPath;
+				}
 				if( embedFile(f, ext, relPath + "/" + f, path) )
 					Reflect.setField(data, f, true);
 			}
