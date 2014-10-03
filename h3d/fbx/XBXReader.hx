@@ -67,7 +67,7 @@ class XBXReader
 		var t = switch( b )
 		{
 			case 0: PInt( readInt());
-			case 1: PFloat( i.readDouble() );
+			case 1: PFloat( #if singlePrecXBX i.readFloat() #else i.readDouble() #end );
 			case 2: PString( readString() );
 			case 3: PIdent( readString() );
 			case 4:
@@ -85,6 +85,15 @@ class XBXReader
 			case 5:
 				var l = readInt();
 				var a = [];
+				#if singlePrecXBX
+				var tmp = hxd.impl.Tmp.getBytes(l * 4);
+				i.readFullBytes(tmp, 0, l * 4);
+				var r = hxd.impl.Memory.select(tmp);
+				a[l - 1] = 0.;
+				for( idx in 0...l)
+					a[idx] = r.float(idx << 2);
+				r.end();
+				#else
 				var tmp = hxd.impl.Tmp.getBytes(l * 8);
 				i.readFullBytes(tmp, 0, l * 8);
 				var r = hxd.impl.Memory.select(tmp);
@@ -92,6 +101,7 @@ class XBXReader
 				for( idx in 0...l)
 					a[idx] = r.double(idx << 3);
 				r.end();
+				#end
 				hxd.impl.Tmp.saveBytes(tmp);
 				PFloats( a );
 			default:

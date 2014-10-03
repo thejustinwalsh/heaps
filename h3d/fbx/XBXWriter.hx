@@ -58,7 +58,7 @@ class XBXWriter
 		switch( p )
 		{
 			case PInt( v ):		writeInt( v );
-			case PFloat( v ):	o.writeDouble(v);
+			case PFloat( v ):	#if singlePrecXBX o.writeFloat(v); #else o.writeDouble(v); #end
 			case PString( v ):	writeString( v );
 			case PIdent( v ): 	writeString( v );
 			case PInts( va ):
@@ -70,7 +70,11 @@ class XBXWriter
 				#else
 				o.writeInt31( va.length );
 				#end
+				#if singlePrecXBX
+				for ( i in va ) o.writeFloat(i);
+				#else
 				for ( i in va ) o.writeDouble(i);
+				#end
 		}
 	}
 
