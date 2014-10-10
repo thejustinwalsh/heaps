@@ -91,7 +91,7 @@ class Stage3dDriver extends Driver {
 	override function init( onCreate, forceSoftware = false ) {
 		this.onCreateCallback = onCreate;
 		s3d.addEventListener(flash.events.Event.CONTEXT3D_CREATE, this.onCreate);
-		s3d.requestContext3D( forceSoftware ? "software" : "auto", PROFILE );
+		s3d.requestContext3D( cast (forceSoftware ? "software" : "auto"), PROFILE );
 	}
 
 	function onCreate(_) {
