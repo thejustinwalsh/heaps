@@ -67,7 +67,7 @@ class XBXReader
 		var t = switch( b )
 		{
 			case 0: PInt( readInt());
-			case 1: PFloat( #if singlePrecXBX i.readFloat() #else i.readDouble() #end );
+			case 1: PFloat(i.readDouble());
 			case 2: PString( readString() );
 			case 3: PIdent( readString() );
 			case 4:
