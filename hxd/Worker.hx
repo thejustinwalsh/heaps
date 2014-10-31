@@ -22,7 +22,7 @@ class Worker<T:EnumValue> {
 
 	public function send( msg : T ) {
 		if( !ENABLE ) {
-			haxe.Timer.delay(debugPeer.handleMessage.bind(msg), 1);
+			haxe.Timer.delay(function() debugPeer.handleMessage(msg), 1);
 			return;
 		}
 		var args = Type.enumParameters(msg);
