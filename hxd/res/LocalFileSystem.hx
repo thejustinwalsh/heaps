@@ -38,9 +38,13 @@ private class LocalEntry extends FileEntry {
 			new h3d.fbx.XBXWriter(out).write(fbx);
 			return out.getBytes();
 		}
-		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath,"_") + ".xbx";
+		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath, "_") + ".xbx";
 		#if air3
 		var target = new flash.filesystem.File(target);
+		if( fs.releaseBuild ) {
+			file = target;
+			return;
+		}
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
 			var fbx = getXBX();
 			var out = new flash.filesystem.FileStream();
@@ -62,6 +66,10 @@ private class LocalEntry extends FileEntry {
 		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath,"_") + ".mp3";
 		#if air3
 		var target = new flash.filesystem.File(target);
+		if( fs.releaseBuild ) {
+			file = target;
+			return;
+		}
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
 			var p = new flash.desktop.NativeProcess();
 			var i = new flash.desktop.NativeProcessStartupInfo();
@@ -307,6 +315,7 @@ class LocalFileSystem implements FileSystem {
 	public var baseDir(default,null) : String;
 	public var createXBX : Bool;
 	public var createMP3 : Bool;
+	public var releaseBuild : Bool;
 	public var tmpDir : String;
 
 	public function new( dir : String ) {
