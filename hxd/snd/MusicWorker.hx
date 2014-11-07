@@ -163,11 +163,16 @@ class MusicWorker extends Worker<MusicMessage> {
 
 			var mp = new format.mp3.Reader(new haxe.io.BytesInput(bytes)).read();
 			c.samples = mp.sampleCount;
-			var frame = mp.frames[0].data.toString();
+			var frame = mp.frames[0].data;
 			// http://gabriel.mp3-tech.org/mp3infotag.html
-			var lame = frame.indexOf("LAME", 32 + 120);
-			if( lame >= 0 ) {
-				var startEnd = (frame.charCodeAt(lame + 21) << 16) | (frame.charCodeAt(lame + 22) << 8) | frame.charCodeAt(lame + 23);
+			var pos = -1;
+			for( i in 32 + 120...frame.length - 24 )
+				if( frame.get(i) == "L".code && frame.get(i + 1) == "A".code && frame.get(i + 2) == "M".code && frame.get(i + 3) == "E".code ) {
+					pos = i;
+					break;
+				}
+			if( pos >= 0 ) {
+				var startEnd = (frame.get(pos + 21) << 16) | (frame.get(pos + 22) << 8) | frame.get(pos + 23);
 				var start = startEnd >> 12;
 				var end = startEnd & ((1 << 12) - 1);
 				c.samples -= start + end + 1152; // first frame is empty
@@ -263,7 +268,7 @@ class MusicWorker extends Worker<MusicMessage> {
 	}
 
 	function initActivate() {
-		#if flash
+		#if air3
 		// note : on some devices (Wiko) theses events are not fired inside workers, so catch them only in main thread
 		flash.desktop.NativeApplication.nativeApplication.addEventListener(flash.events.Event.ACTIVATE, function(_:Dynamic) send(Active(true)));
 		flash.desktop.NativeApplication.nativeApplication.addEventListener(flash.events.Event.DEACTIVATE, function(_:Dynamic) send(Active(false)));
