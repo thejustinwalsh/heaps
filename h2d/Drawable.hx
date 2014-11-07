@@ -23,6 +23,7 @@ private class DrawableShader extends h3d.impl.Shader {
 
 		var hasAnim : Bool;
 		var anims : Float3<64>;
+		var halfPixelInverse : Float2;
 
 		function vertex( size : Float3, matA : Float3, matB : Float3 ) {
 			var tmp : Float4;
@@ -32,6 +33,7 @@ private class DrawableShader extends h3d.impl.Shader {
 			tmp.y = spos.dp3(matB);
 			tmp.z = zValue;
 			tmp.w = skew != null ? 1 - skew * input.pos.y : 1;
+			tmp.xy -= halfPixelInverse;
 			out = tmp;
 			var t = input.uv;
 			if( uvScale != null ) t *= uvScale;
@@ -512,6 +514,11 @@ class Drawable extends Sprite {
 		tmp.z = absY + tile.dx * matB + tile.dy * matD;
 		shader.matB = tmp;
 		shader.tex = tile.getTexture();
+
+		if( shader.halfPixelInverse == null )
+			shader.halfPixelInverse = new h3d.Vector();
+		shader.halfPixelInverse.set(0.5 / engine.width, 0.5 / engine.height, 0);
+
 		/*
 		shader.isAlphaPremul = isTexPremul
 		&& (shader.hasAlphaMap || shader.hasAlpha || shader.hasMultMap
