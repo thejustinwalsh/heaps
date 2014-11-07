@@ -8,6 +8,7 @@ private class LocalEntry extends FileEntry {
 
 	var fs : LocalFileSystem;
 	var relPath : String;
+	var needUnzip : Bool;
 	#if air3
 	var file : flash.filesystem.File;
 	var fread : flash.filesystem.FileStream;
@@ -39,25 +40,29 @@ private class LocalEntry extends FileEntry {
 			return out.getBytes();
 		}
 		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath, "_") + ".xbx";
+		needUnzip = fs.compressXBX;
 		#if air3
-		var target = new flash.filesystem.File(target);
 		if( fs.releaseBuild ) {
-			file = target;
+			file = fs.open(target);
+			if( file == null ) throw "Missing file " + target;
 			return;
 		}
+		var target = new flash.filesystem.File(target);
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
-			var fbx = getXBX();
+			var xbx = getXBX();
+			if( fs.compressXBX ) xbx = haxe.zip.Compress.run(xbx, 9);
 			var out = new flash.filesystem.FileStream();
 			out.open(target, flash.filesystem.FileMode.WRITE);
-			out.writeBytes(fbx.getData());
+			out.writeBytes(xbx.getData());
 			out.close();
 		}
 		file = target;
 		#else
 		var ttime = try sys.FileSystem.stat(target) catch( e : Dynamic ) null;
 		if( ttime == null || ttime.mtime.getTime() < sys.FileSystem.stat(file).mtime.getTime() ) {
-			var fbx = getXBX();
-			sys.io.File.saveBytes(target, fbx);
+			var xbx = getXBX();
+			if( fs.compressXBX ) xbx = haxe.zip.Compress.run(xbx, 9);
+			sys.io.File.saveBytes(target, xbx);
 		}
 		#end
 	}
@@ -65,11 +70,12 @@ private class LocalEntry extends FileEntry {
 	function convertToMP3() {
 		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath,"_") + ".mp3";
 		#if air3
-		var target = new flash.filesystem.File(target);
 		if( fs.releaseBuild ) {
-			file = target;
+			file = fs.open(target);
+			if( file == null ) throw "Missing file " + target;
 			return;
 		}
+		var target = new flash.filesystem.File(target);
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
 			var p = new flash.desktop.NativeProcess();
 			var i = new flash.desktop.NativeProcessStartupInfo();
@@ -116,6 +122,8 @@ private class LocalEntry extends FileEntry {
 		var bytes = haxe.io.Bytes.alloc(fs.bytesAvailable);
 		fs.readBytes(bytes.getData());
 		fs.close();
+		if( needUnzip )
+			return haxe.zip.Uncompress.run(bytes);
 		return bytes;
 		#else
 		return sys.io.File.getBytes(file);
@@ -312,21 +320,24 @@ private class LocalEntry extends FileEntry {
 class LocalFileSystem implements FileSystem {
 
 	var root : FileEntry;
-	public var baseDir(default,null) : String;
+	var baseDir(default,null) : String;
+	var tmpDir : String;
 	public var createXBX : Bool;
 	public var createMP3 : Bool;
+	public var compressXBX : Bool;
 	public var releaseBuild : Bool;
-	public var tmpDir : String;
 
 	public function new( dir : String ) {
 		baseDir = dir;
 		#if air3
-		var froot = new flash.filesystem.File(flash.filesystem.File.applicationDirectory.nativePath + "/" + baseDir);
+		var path = flash.filesystem.File.applicationDirectory.nativePath;
+		var froot = path == "" ? flash.filesystem.File.applicationDirectory.resolvePath(baseDir) : new flash.filesystem.File(path + "/" + baseDir);
 		if( !froot.exists ) throw "Could not find dir " + dir;
 		baseDir = froot.nativePath;
 		baseDir = baseDir.split("\\").join("/");
 		if( !StringTools.endsWith(baseDir, "/") ) baseDir += "/";
 		root = new LocalEntry(this, "root", null, froot);
+		if( baseDir == "/" ) baseDir = ""; // use relative paths on Android !!
 		#else
 		var exePath = Sys.executablePath().split("\\").join("/").split("/");
 		exePath.pop();
@@ -349,6 +360,11 @@ class LocalFileSystem implements FileSystem {
 
 	function open( path : String ) {
 		#if air3
+		if( baseDir == "" ) {
+			var f = cast(root,LocalEntry).file.resolvePath(path);
+			if( !f.exists ) return null;
+			return f;
+		}
 		var f = new flash.filesystem.File(baseDir + path);
 		// ensure exact case / no relative path
 		f.canonicalize();
