@@ -47,7 +47,7 @@ private class LocalEntry extends FileEntry {
 			if( file == null ) throw "Missing file " + target;
 			return;
 		}
-		var target = new flash.filesystem.File(target);
+		var target = new flash.filesystem.File(fs.baseDir + target);
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
 			var xbx = getXBX();
 			if( fs.compressXBX ) xbx = haxe.zip.Compress.run(xbx, 9);
@@ -75,7 +75,7 @@ private class LocalEntry extends FileEntry {
 			if( file == null ) throw "Missing file " + target;
 			return;
 		}
-		var target = new flash.filesystem.File(target);
+		var target = new flash.filesystem.File(fs.baseDir + target);
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
 			var p = new flash.desktop.NativeProcess();
 			var i = new flash.desktop.NativeProcessStartupInfo();
@@ -92,7 +92,6 @@ private class LocalEntry extends FileEntry {
 				trace(e);
 			});
 			p.start(i);
-			trace("Started");
 		} else
 			file = target;
 		#end
@@ -347,7 +346,7 @@ class LocalFileSystem implements FileSystem {
 		if( !StringTools.endsWith(baseDir, "/") ) baseDir += "/";
 		root = new LocalEntry(this, "root", null, baseDir);
 		#end
-		tmpDir = baseDir + ".tmp/";
+		tmpDir = ".tmp/";
 	}
 
 	public dynamic function xbxFilter( entry : FileEntry, fbx : h3d.fbx.Data.FbxNode ) : h3d.fbx.Data.FbxNode {
