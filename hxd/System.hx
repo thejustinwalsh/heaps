@@ -64,7 +64,31 @@ class System {
 		else {
 			loop = function(_) f();
 			flash.Lib.current.addEventListener(flash.events.Event.ENTER_FRAME, loop);
+			if( isAir() ) checkActive();
 		}
+	}
+
+	static var ACTIVE_INIT = false;
+	static function checkActive() {
+		if( ACTIVE_INIT ) return;
+		ACTIVE_INIT = true;
+		#if air3
+		var oldLoop = null;
+		flash.desktop.NativeApplication.nativeApplication.addEventListener(flash.events.Event.DEACTIVATE, function(_:Dynamic) {
+			if( loop != null ) {
+				flash.Lib.current.removeEventListener(flash.events.Event.ENTER_FRAME, loop);
+				oldLoop = loop;
+				loop = null;
+			}
+		});
+		flash.desktop.NativeApplication.nativeApplication.addEventListener(flash.events.Event.ACTIVATE, function(_:Dynamic) {
+			if( oldLoop != null ) {
+				flash.Lib.current.addEventListener(flash.events.Event.ENTER_FRAME, oldLoop);
+				loop = oldLoop;
+				oldLoop = null;
+			}
+		});
+		#end
 	}
 
 	static function isAir() {
