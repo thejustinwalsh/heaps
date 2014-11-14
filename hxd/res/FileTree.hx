@@ -136,6 +136,12 @@ class FileTree {
 			}
 			Context.registerModuleDependency(currentModule, fullPath);
 			fullPath = tmp;
+		case "fbx" if( options.createHMD ):
+			var tmp = options.tmpDir + name + ".hmd";
+			if( getTime(tmp) < getTime(fullPath) )
+				throw "HMD for " + fullPath + " is not up to date";
+			Context.registerModuleDependency(currentModule, fullPath);
+			fullPath = tmp;
 		default:
 		}
 

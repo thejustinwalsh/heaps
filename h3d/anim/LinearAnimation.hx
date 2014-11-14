@@ -99,6 +99,9 @@ class LinearAnimation extends Animation {
 		if( frame1 < 0 ) frame1 = frame2 = 0 else if( frame >= frameCount ) frame1 = frame2 = frameCount - 1;
 		syncFrame = frame;
 		for( o in getFrames() ) {
+
+			if( o.targetObject == null && o.targetSkin == null ) continue;
+
 			if( o.alphas != null ) {
 				var mat = o.targetObject.toMesh().material;
 				if( mat.colorMul == null ) {
@@ -119,6 +122,11 @@ class LinearAnimation extends Animation {
 				mat.uvDelta.y = o.uvs[(frame1 << 1) | 1] * k1 + o.uvs[(frame2 << 1) | 1] * k2;
 				continue;
 			}
+
+			var frame1 = frame1, frame2 = frame2;
+			if( o.frames.length == 1 )
+				frame1 = frame2 = 0;
+
 			var f1 = o.frames[frame1], f2 = o.frames[frame2];
 
 			var m = o.matrix;
