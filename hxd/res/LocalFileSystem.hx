@@ -24,11 +24,25 @@ private class LocalEntry extends FileEntry {
 		this.file = file;
 		if( fs.createXBX && extension == "fbx" )
 			convertToXBX();
+		if( fs.createHMD && extension == "fbx" )
+			convertToHMD();
 		if( fs.createMP3 && extension == "wav" )
 			convertToMP3();
 	}
 
 	static var INVALID_CHARS = ~/[^A-Za-z0-9_]/g;
+
+	function convertToHMD() {
+		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath, "_") + ".hmd";
+		#if air3
+		if( fs.releaseBuild ) {
+			file = fs.open(target);
+			if( file == null ) throw "Missing file " + target;
+			return;
+		}
+		#end
+		throw "TODO:converToHMD()";
+	}
 
 	function convertToXBX() {
 		function getXBX() {
@@ -163,7 +177,7 @@ private class LocalEntry extends FileEntry {
 
 	override function read( out : haxe.io.Bytes, pos : Int, size : Int ) : Void {
 		#if air3
-		fread.readBytes(out.getData(), pos, size);
+		if( size > 0 ) fread.readBytes(out.getData(), pos, size);
 		#else
 		fread.readFullBytes(out, pos, size);
 		#end
@@ -322,6 +336,7 @@ class LocalFileSystem implements FileSystem {
 	var baseDir(default,null) : String;
 	var tmpDir : String;
 	public var createXBX : Bool;
+	public var createHMD : Bool;
 	public var createMP3 : Bool;
 	public var compressXBX : Bool;
 	public var releaseBuild : Bool;
