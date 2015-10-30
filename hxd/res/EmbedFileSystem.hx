@@ -242,7 +242,7 @@ class EmbedFileSystem #if !macro implements FileSystem #end {
 
 	public static macro function create( ?basePath : String, ?options : EmbedOptions ) {
 		var f = new FileTree(basePath);
-		if( options.xbxFilterClass != null ) {
+		if( options != null && options.xbxFilterClass != null ) {
 			var c = Type.resolveClass(options.xbxFilterClass);
 			if( c == null ) haxe.macro.Context.error('Could not resolve ${options.xbxFilterClass}', haxe.macro.Context.currentPos());
 			options.xbxFilter = Reflect.field(c, "run");
