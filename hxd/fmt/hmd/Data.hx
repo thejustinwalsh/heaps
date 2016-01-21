@@ -38,6 +38,12 @@ package hxd.fmt.hmd;
 typedef DataPosition = Int;
 typedef Index<T> = Int;
 
+enum Property<T> {
+	CameraFOVY( v : Float ) : Property<Float>;
+}
+
+typedef Properties = Null<Array<Property<Dynamic>>>;
+
 class Position {
 	public var x : Float;
 	public var y : Float;
@@ -45,18 +51,23 @@ class Position {
 	public var qx : Float;
 	public var qy : Float;
 	public var qz : Float;
+	public var qw(get, never) : Float;
 	public var sx : Float;
 	public var sy : Float;
 	public var sz : Float;
 	public function new() {
 	}
 
-	public function loadQuaternion( q : h3d.Quat ) {
-		var qw = 1 - (qx * qx + qy * qy + qz * qz);
+	public inline function loadQuaternion( q : h3d.Quat ) {
 		q.x = qx;
 		q.y = qy;
 		q.z = qz;
-		q.w = qw < 0 ? -Math.sqrt( -qw) : Math.sqrt(qw);
+		q.w = qw;
+	}
+
+	function get_qw() {
+		var qw = 1 - (qx * qx + qy * qy + qz * qz);
+		return qw < 0 ? -Math.sqrt( -qw) : Math.sqrt(qw);
 	}
 
 	public function toMatrix(postScale=false) {
@@ -88,6 +99,7 @@ class GeometryFormat {
 }
 
 class Geometry {
+	public var props : Properties;
 	public var vertexCount : Int;
 	public var vertexStride : Int;
 	public var vertexFormat : Array<GeometryFormat>;
@@ -107,8 +119,9 @@ class Geometry {
 
 class Material {
 	public var name : String;
+	public var props : Properties;
 	public var diffuseTexture : Null<String>;
-	public var blendMode : h2d.BlendMode;
+	public var blendMode : h3d.mat.BlendMode;
 	public var culling : h3d.mat.Data.Face;
 	public var killAlpha : Null<Float>;
 	public function new() {
@@ -117,6 +130,7 @@ class Material {
 
 class SkinJoint {
 	public var name : String;
+	public var props : Properties;
 	public var parent : Index<SkinJoint>;
 	public var position : Position;
 	public var bind : Int;
@@ -134,6 +148,7 @@ class SkinSplit {
 
 class Skin {
 	public var name : String;
+	public var props : Properties;
 	public var joints : Array<SkinJoint>;
 	public var split : Null<Array<SkinSplit>>;
 	public function new() {
@@ -142,6 +157,7 @@ class Skin {
 
 class Model {
 	public var name : String;
+	public var props : Properties;
 	public var parent : Index<Model>;
 	public var follow : Null<String>;
 	public var position : Position;
@@ -159,22 +175,34 @@ enum AnimationFlag {
 	HasUV;
 	HasAlpha;
 	SinglePosition;
+	HasProps;
+	Reserved;
 }
 
 class AnimationObject {
 	public var name : String;
 	public var flags : haxe.EnumFlags<AnimationFlag>;
+	public var props : Array<String>;
+	public function new() {
+	}
+}
+
+class AnimationEvent {
+	public var frame : Int;
+	public var data : String;
 	public function new() {
 	}
 }
 
 class Animation {
 	public var name : String;
+	public var props : Properties;
 	public var frames : Int;
 	public var sampling : Float;
 	public var speed : Float;
 	public var loop : Bool;
 	public var objects : Array<AnimationObject>;
+	public var events : Null<Array<AnimationEvent>>;
 	public var dataPosition : DataPosition;
 	public function new() {
 	}
@@ -182,7 +210,10 @@ class Animation {
 
 class Data {
 
+	public static inline var CURRENT_VERSION = 2;
+
 	public var version : Int;
+	public var props : Properties;
 	public var geometries : Array<Geometry>;
 	public var materials : Array<Material>;
 	public var models : Array<Model>;

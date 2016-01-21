@@ -2,9 +2,27 @@ package hxd.fmt.pak;
 import hxd.res.FileEntry;
 #if air3
 import hxd.impl.Air3File;
-#else
+#elseif sys
 import sys.io.File;
 import sys.io.FileInput;
+#else
+enum FileSeek {
+	SeekBegin;
+	SeekEnd;
+	SeedCurrent;
+}
+class FileInput extends haxe.io.BytesInput {
+	public function seek( pos : Int, seekMode : FileSeek ) {
+		switch( seekMode ) {
+		case SeekBegin:
+			this.position = pos;
+		case SeekEnd:
+			this.position = this.length - pos;
+		case SeedCurrent:
+			this.position += pos;
+		}
+	}
+}
 #end
 
 @:allow(hxd.fmt.pak.FileSystem)
@@ -46,6 +64,13 @@ private class PakEntry extends FileEntry {
 	override function getBytes() {
 		pak.seek(file.dataPosition, SeekBegin);
 		return pak.read(file.dataSize);
+	}
+
+	override function getTmpBytes() {
+		pak.seek(file.dataPosition, SeekBegin);
+		var tmp = hxd.impl.Tmp.getBytes(file.dataSize);
+		pak.readFullBytes(tmp, 0, file.dataSize);
+		return tmp;
 	}
 
 	override function open() {
@@ -100,19 +125,24 @@ private class PakEntry extends FileEntry {
 
 	override function loadBitmap( onLoaded ) {
 		#if flash
+		if( openedBytes != null ) throw "Must close() before loadBitmap";
+		open();
+		var old = openedBytes;
 		var loader = new flash.display.Loader();
 		loader.contentLoaderInfo.addEventListener(flash.events.IOErrorEvent.IO_ERROR, function(e:flash.events.IOErrorEvent) {
 			throw Std.string(e) + " while loading " + path;
 		});
 		loader.contentLoaderInfo.addEventListener(flash.events.Event.COMPLETE, function(_) {
+			if( openedBytes == null ) {
+				openedBytes = old;
+				close();
+			}
 			var content : flash.display.Bitmap = cast loader.content;
-			onLoaded(hxd.BitmapData.fromNative(content.bitmapData));
+			onLoaded(new hxd.fs.LoadedBitmap(content.bitmapData));
 			loader.unload();
 		});
-		var op = openedBytes != null;
-		if( !op ) open();
 		loader.loadBytes(openedBytes.getData());
-		if( !op ) close();
+		openedBytes = null;
 		#else
 		super.loadBitmap(onLoaded);
 		#end
@@ -124,25 +154,40 @@ class FileSystem implements hxd.res.FileSystem {
 
 	var root : PakEntry;
 	var dict : Map<String,PakEntry>;
+	var files : Array<FileInput>;
 
-	public function new( pakFile : String ) {
+	public function new() {
 		dict = new Map();
 		var f = new Data.File();
 		f.name = "<root>";
 		f.isDirectory = true;
 		f.content = [];
+		files = [];
 		root = new PakEntry(null, f, null);
-		loadPak(pakFile);
 	}
 
 	public function loadPak( file : String ) {
-		var s = File.read(file);
+		#if (air3 || sys)
+		addPak(File.read(file));
+		#else
+		throw "TODO";
+		#end
+	}
+
+	public function addPak( s : FileInput ) {
 		var pak = new Reader(s).readHeader();
 		if( pak.root.isDirectory ) {
 			for( f in pak.root.content )
 				addRec(root, f.name, f, s, pak.headerSize);
 		} else
 			addRec(root, pak.root.name, pak.root, s, pak.headerSize);
+		files.push(s);
+	}
+
+	public function dispose() {
+		for( f in files )
+			f.close();
+		files = [];
 	}
 
 	function addRec( parent : PakEntry, path : String, f : Data.File, pak : FileInput, delta : Int ) {

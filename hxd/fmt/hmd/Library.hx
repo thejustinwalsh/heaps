@@ -256,12 +256,12 @@ class Library {
 	function makeMaterial( mid : Int, loadTexture : String -> h3d.mat.Texture ) {
 		var m = header.materials[mid];
 		var mat = new h3d.mat.MeshMaterial(null);
-		//mat.name = m.name;
+//		mat.name = m.name;
 		if( m.diffuseTexture != null ) {
 			mat.texture = loadTexture(m.diffuseTexture);
 			if( mat.texture == null ) mat.texture = h3d.mat.Texture.fromColor(0xFF00FF);
 		}
-		//mat.blendMode = m.blendMode;
+//		mat.blendMode = m.blendMode;
 		//mat.culling = m.culling;
 		mat.culling = None; // FORCE (BACKWARD COMPAT)
 		if( m.killAlpha != null ) {
@@ -380,6 +380,7 @@ class Library {
 		var l = new h3d.anim.LinearAnimation(a.name, a.frames, a.sampling);
 		l.speed = a.speed;
 		l.loop = a.loop;
+//		if( a.events != null ) l.setEvents(a.events);
 
 		entry.open();
 		entry.skip(header.dataPosition + a.dataPosition);
@@ -452,11 +453,21 @@ class Library {
 				l.addAlphaCurve(o.name, fl);
 				hxd.impl.Tmp.saveBytes(data);
 			}
+			if( o.flags.has(HasProps) ) {
+				for( p in o.props ) {
+					var fl = new haxe.ds.Vector(a.frames);
+					var size = 4 * a.frames;
+					var data = hxd.impl.Tmp.getBytes(size);
+					entry.read(data, 0, size);
+					for( i in 0...fl.length )
+						fl[i] = data.getFloat(i * 4);
+//					l.addPropCurve(o.name, p, fl);
+					hxd.impl.Tmp.saveBytes(data);
+				}
+			}
 		}
 
 		entry.close();
-
-
 		return l;
 	}
 
@@ -533,6 +544,18 @@ class Library {
 					fl[i] = data.getFloat(i * 4);
 				l.addAlphaCurve(o.name, fl);
 				hxd.impl.Tmp.saveBytes(data);
+			}
+			if( o.flags.has(HasProps) ) {
+				for( p in o.props ) {
+					var fl = new haxe.ds.Vector(a.frames);
+					var size = 4 * a.frames;
+					var data = hxd.impl.Tmp.getBytes(size);
+					entry.read(data, 0, size);
+					for( i in 0...fl.length )
+						fl[i] = data.getFloat(i * 4);
+//					l.addPropCurve(o.name, p, fl);
+					hxd.impl.Tmp.saveBytes(data);
+				}
 			}
 		}
 
