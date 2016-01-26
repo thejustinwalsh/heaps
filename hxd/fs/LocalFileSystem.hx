@@ -2,16 +2,16 @@ package hxd.fs;
 
 #if (air3 || sys)
 
-@:allow(hxd.res.LocalFileSystem)
-@:access(hxd.res.LocalFileSystem)
+@:allow(hxd.fs.LocalFileSystem)
+@:access(hxd.fs.LocalFileSystem)
 private class LocalEntry extends FileEntry {
 
 	var fs : LocalFileSystem;
 	var relPath : String;
-	var needUnzip : Bool;
 	#if air3
 	var file : flash.filesystem.File;
 	var fread : flash.filesystem.FileStream;
+	var checkExists : Bool;
 	#else
 	var file : String;
 	var fread : sys.io.FileInput;
@@ -22,93 +22,79 @@ private class LocalEntry extends FileEntry {
 		this.name = name;
 		this.relPath = relPath;
 		this.file = file;
-		if( fs.createXBX && extension == "fbx" )
-			convertToXBX();
 		if( fs.createHMD && extension == "fbx" )
 			convertToHMD();
 		if( fs.createMP3 && extension == "wav" )
 			convertToMP3();
+		if( fs.createOGG && extension == "wav" )
+			convertToOGG();
 	}
 
 	static var INVALID_CHARS = ~/[^A-Za-z0-9_]/g;
 
 	function convertToHMD() {
-		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath, "_") + ".hmd";
-		#if air3
-		if( fs.releaseBuild ) {
-			file = fs.open(target);
-			if( file == null ) throw "Missing file " + target;
-			return;
-		}
-		#end
-		throw "TODO:converToHMD()";
-	}
-
-	function convertToXBX() {
-		function getXBX() {
+		function getHMD() {
 			var fbx = null;
-			try fbx = h3d.fbx.Parser.parse(getBytes().toString()) catch( e : Dynamic ) throw Std.string(e) + " in " + relPath;
-			fbx = fs.xbxFilter(this, fbx);
+			var content = getBytes();
+			try fbx = hxd.fmt.fbx.Parser.parse(content.toString()) catch( e : Dynamic ) throw Std.string(e) + " in " + relPath;
+			var hmdout = new hxd.fmt.fbx.HMDOut();
+			hmdout.load(fbx);
+			var hmd = hmdout.toHMD(null, !StringTools.startsWith(name, "Anim_"));
 			var out = new haxe.io.BytesOutput();
-			new h3d.fbx.XBXWriter(out).write(fbx);
+			new hxd.fmt.hmd.Writer(out).write(hmd);
 			return out.getBytes();
 		}
-		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath, "_") + ".xbx";
-		needUnzip = fs.compressXBX;
+		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath,"_") + ".hmd";
 		#if air3
-		if( fs.releaseBuild ) {
-			file = fs.open(target);
-			if( file == null ) throw "Missing file " + target;
-			return;
-		}
-		var target = new flash.filesystem.File(fs.baseDir + target);
+		var target = new flash.filesystem.File(target);
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
-			var xbx = getXBX();
-			if( fs.compressXBX ) xbx = haxe.zip.Compress.run(xbx, 9);
+			var hmd = getHMD();
 			var out = new flash.filesystem.FileStream();
 			out.open(target, flash.filesystem.FileMode.WRITE);
-			out.writeBytes(xbx.getData());
+			out.writeBytes(hmd.getData());
 			out.close();
+			checkExists = true;
 		}
-		file = target;
 		#else
 		var ttime = try sys.FileSystem.stat(target) catch( e : Dynamic ) null;
 		if( ttime == null || ttime.mtime.getTime() < sys.FileSystem.stat(file).mtime.getTime() ) {
-			var xbx = getXBX();
-			if( fs.compressXBX ) xbx = haxe.zip.Compress.run(xbx, 9);
-			sys.io.File.saveBytes(target, xbx);
+			var hmd = getHMD();
+			sys.io.File.saveBytes(target, hmd);
 		}
 		#end
+		file = target;
 	}
 
 	function convertToMP3() {
 		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath,"_") + ".mp3";
 		#if air3
-		if( fs.releaseBuild ) {
-			file = fs.open(target);
-			if( file == null ) throw "Missing file " + target;
-			return;
-		}
-		var target = new flash.filesystem.File(fs.baseDir + target);
+		var target = new flash.filesystem.File(target);
 		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
-			var p = new flash.desktop.NativeProcess();
-			var i = new flash.desktop.NativeProcessStartupInfo();
-			i.arguments = flash.Vector.ofArray(["-h",file.nativePath,target.nativePath]);
-			var f = new flash.filesystem.File("d:/projects/shiroTools/tools/lame.exe");
-			i.executable = f;
-			i.workingDirectory = f.parent;
-			p.addEventListener("exit", function(e:Dynamic) {
-				var code : Int = Reflect.field(e, "exitCode");
-				if( code == 0 )
-					file = target;
-			});
-			p.addEventListener(flash.events.IOErrorEvent.IO_ERROR, function(e) {
-				trace(e);
-			});
-			p.start(i);
-		} else
-			file = target;
+			hxd.snd.Convert.toMP3(file.nativePath, target.nativePath);
+			checkExists = true;
+		}
+		#else
+		var ttime = try sys.FileSystem.stat(target) catch( e : Dynamic ) null;
+		if( ttime == null || ttime.mtime.getTime() < sys.FileSystem.stat(file).mtime.getTime() )
+			hxd.snd.Convert.toMP3(file, target);
 		#end
+		file = target;
+	}
+
+	function convertToOGG() {
+		var target = fs.tmpDir + "R_" + INVALID_CHARS.replace(relPath,"_") + ".ogg";
+		#if air3
+		var target = new flash.filesystem.File(target);
+		if( !target.exists || target.modificationDate.getTime() < file.modificationDate.getTime() ) {
+			hxd.snd.Convert.toOGG(file.nativePath, target.nativePath);
+			checkExists = true;
+		}
+		#else
+		var ttime = try sys.FileSystem.stat(target) catch( e : Dynamic ) null;
+		if( ttime == null || ttime.mtime.getTime() < sys.FileSystem.stat(file).mtime.getTime() )
+			hxd.snd.Convert.toOGG(file, target);
+		#end
+		file = target;
 	}
 
 	override function getSign() : Int {
@@ -128,15 +114,30 @@ private class LocalEntry extends FileEntry {
 		#end
 	}
 
+	override function getTmpBytes() {
+		#if air3
+		if( checkExists && !file.exists )
+			return haxe.io.Bytes.alloc(0);
+		var fs = new flash.filesystem.FileStream();
+		fs.open(file, flash.filesystem.FileMode.READ);
+		var bytes = hxd.impl.Tmp.getBytes(fs.bytesAvailable);
+		fs.readBytes(bytes.getData());
+		fs.close();
+		return bytes;
+		#else
+		return sys.io.File.getBytes(file);
+		#end
+	}
+
 	override function getBytes() : haxe.io.Bytes {
 		#if air3
+		if( checkExists && !file.exists )
+			return haxe.io.Bytes.alloc(0);
 		var fs = new flash.filesystem.FileStream();
 		fs.open(file, flash.filesystem.FileMode.READ);
 		var bytes = haxe.io.Bytes.alloc(fs.bytesAvailable);
 		fs.readBytes(bytes.getData());
 		fs.close();
-		if( needUnzip )
-			return haxe.zip.Uncompress.run(bytes);
 		return bytes;
 		#else
 		return sys.io.File.getBytes(file);
@@ -177,7 +178,7 @@ private class LocalEntry extends FileEntry {
 
 	override function read( out : haxe.io.Bytes, pos : Int, size : Int ) : Void {
 		#if air3
-		if( size > 0 ) fread.readBytes(out.getData(), pos, size);
+		fread.readBytes(out.getData(), pos, size);
 		#else
 		fread.readFullBytes(out, pos, size);
 		#end
@@ -214,7 +215,7 @@ private class LocalEntry extends FileEntry {
 		#end
 	}
 
-	override function loadBitmap( onLoaded : hxd.BitmapData -> Void ) : Void {
+	override function loadBitmap( onLoaded : hxd.fs.LoadedBitmap -> Void ) : Void {
 		#if flash
 		var loader = new flash.display.Loader();
 		loader.contentLoaderInfo.addEventListener(flash.events.IOErrorEvent.IO_ERROR, function(e:flash.events.IOErrorEvent) {
@@ -222,7 +223,7 @@ private class LocalEntry extends FileEntry {
 		});
 		loader.contentLoaderInfo.addEventListener(flash.events.Event.COMPLETE, function(_) {
 			var content : flash.display.Bitmap = cast loader.content;
-			onLoaded(hxd.BitmapData.fromNative(content.bitmapData));
+			onLoaded(new hxd.fs.LoadedBitmap(content.bitmapData));
 			loader.unload();
 		});
 		loader.load(new flash.net.URLRequest(file.url));
@@ -280,23 +281,27 @@ private class LocalEntry extends FileEntry {
 
 	var watchCallback : Void -> Void;
 	var watchTime : Float;
+	static var WATCH_INDEX = 0;
 	static var WATCH_LIST : Array<LocalEntry> = null;
 
 	static function checkFiles(_) {
-		for( w in WATCH_LIST ) {
-			var t = try w.file.modificationDate.getTime() catch( e : Dynamic ) -1;
-			if( t != w.watchTime ) {
-				// check we can write (might be deleted/renamed/currently writing)
-				try {
-					var f = new flash.filesystem.FileStream();
-					f.open(w.file, flash.filesystem.FileMode.READ);
-					f.close();
-					f.open(w.file, flash.filesystem.FileMode.APPEND);
-					f.close();
-				} catch( e : Dynamic ) continue;
-				w.watchTime = t;
-				w.watchCallback();
-			}
+		var w = WATCH_LIST[WATCH_INDEX++];
+		if( w == null ) {
+			WATCH_INDEX = 0;
+			return;
+		}
+		var t = try w.file.modificationDate.getTime() catch( e : Dynamic ) -1;
+		if( t != w.watchTime ) {
+			// check we can write (might be deleted/renamed/currently writing)
+			try {
+				var f = new flash.filesystem.FileStream();
+				f.open(w.file, flash.filesystem.FileMode.READ);
+				f.close();
+				f.open(w.file, flash.filesystem.FileMode.APPEND);
+				f.close();
+			} catch( e : Dynamic ) return;
+			w.watchTime = t;
+			w.watchCallback();
 		}
 	}
 
@@ -333,39 +338,38 @@ private class LocalEntry extends FileEntry {
 class LocalFileSystem implements FileSystem {
 
 	var root : FileEntry;
-	var baseDir(default,null) : String;
-	var tmpDir : String;
-	public var createXBX : Bool;
-	public var createHMD : Bool;
+	#if air3
+	var fileCache = new Map<String,{r:flash.filesystem.File}>();
+	#end
+	public var baseDir(default,null) : String;
+	var createHMD : Bool = true;
 	public var createMP3 : Bool;
-	public var compressXBX : Bool;
-	public var releaseBuild : Bool;
+	public var createOGG : Bool;
+	public var tmpDir : String;
 
 	public function new( dir : String ) {
 		baseDir = dir;
 		#if air3
-		var path = flash.filesystem.File.applicationDirectory.nativePath;
-		var froot = path == "" ? flash.filesystem.File.applicationDirectory.resolvePath(baseDir) : new flash.filesystem.File(path + "/" + baseDir);
+		var froot = new flash.filesystem.File(flash.filesystem.File.applicationDirectory.nativePath + "/" + baseDir);
 		if( !froot.exists ) throw "Could not find dir " + dir;
 		baseDir = froot.nativePath;
 		baseDir = baseDir.split("\\").join("/");
 		if( !StringTools.endsWith(baseDir, "/") ) baseDir += "/";
 		root = new LocalEntry(this, "root", null, froot);
-		if( baseDir == "/" ) baseDir = ""; // use relative paths on Android !!
 		#else
 		var exePath = Sys.executablePath().split("\\").join("/").split("/");
 		exePath.pop();
 		var froot = sys.FileSystem.fullPath(exePath.join("/") + "/" + baseDir);
-		if( !sys.FileSystem.isDirectory(froot) ) throw "Could not find dir " + dir;
+		if( !sys.FileSystem.isDirectory(froot) ) {
+			froot = sys.FileSystem.fullPath(baseDir);
+			if( !sys.FileSystem.isDirectory(froot) )
+				throw "Could not find dir " + dir;
+		}
 		baseDir = froot.split("\\").join("/");
 		if( !StringTools.endsWith(baseDir, "/") ) baseDir += "/";
 		root = new LocalEntry(this, "root", null, baseDir);
 		#end
-		tmpDir = ".tmp/";
-	}
-
-	public dynamic function xbxFilter( entry : FileEntry, fbx : h3d.fbx.Data.FbxNode ) : h3d.fbx.Data.FbxNode {
-		return fbx;
+		tmpDir = baseDir + ".tmp/";
 	}
 
 	public function getRoot() : FileEntry {
@@ -374,16 +378,15 @@ class LocalFileSystem implements FileSystem {
 
 	function open( path : String ) {
 		#if air3
-		if( baseDir == "" ) {
-			var f = cast(root,LocalEntry).file.resolvePath(path);
-			if( !f.exists ) return null;
-			return f;
-		}
+		var r = fileCache.get(path);
+		if( r != null )
+			return r.r;
 		var f = new flash.filesystem.File(baseDir + path);
 		// ensure exact case / no relative path
 		f.canonicalize();
-		if( f.nativePath.split("\\").join("/") != baseDir + path )
-			return null;
+		if( !f.exists || f.nativePath.split("\\").join("/") != baseDir + path )
+			f = null;
+		fileCache.set(path, { r:f } );
 		return f;
 		#else
 		var f = sys.FileSystem.fullPath(baseDir + path).split("\\").join("/");
@@ -396,7 +399,7 @@ class LocalFileSystem implements FileSystem {
 	public function exists( path : String ) {
 		#if air3
 		var f = open(path);
-		return f != null && f.exists;
+		return f != null;
 		#else
 		var f = open(path);
 		return f != null && sys.FileSystem.exists(f);
@@ -414,6 +417,12 @@ class LocalFileSystem implements FileSystem {
 		if( f == null ||!sys.FileSystem.exists(f) )
 			throw new NotFound(path);
 		return new LocalEntry(this, path.split("/").pop(), path, f);
+		#end
+	}
+
+	public function dispose() {
+		#if air3
+		fileCache = new Map();
 		#end
 	}
 
@@ -444,6 +453,10 @@ class LocalFileSystem implements FileSystem {
 	public function getRoot() : FileEntry {
 		return null;
 	}
+
+	public function dispose() {
+	}
+
 }
 
 #end

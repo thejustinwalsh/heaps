@@ -108,20 +108,38 @@ private class EmbedEntry extends FileEntry {
 		#end
 	}
 
-	override function loadBitmap( onLoaded : hxd.BitmapData -> Void ) : Void {
+	override function loadBitmap( onLoaded : LoadedBitmap -> Void ) : Void {
 		#if flash
 		var loader = new flash.display.Loader();
 		loader.contentLoaderInfo.addEventListener(flash.events.IOErrorEvent.IO_ERROR, function(e:flash.events.IOErrorEvent) {
 			throw Std.string(e) + " while loading " + relPath;
 		});
 		loader.contentLoaderInfo.addEventListener(flash.events.Event.COMPLETE, function(_) {
-			close();
 			var content : flash.display.Bitmap = cast loader.content;
-			onLoaded(hxd.BitmapData.fromNative(content.bitmapData));
+			onLoaded(new LoadedBitmap(content.bitmapData));
 			loader.unload();
 		});
 		open();
 		loader.loadBytes(bytes);
+		close(); // flash will copy bytes content in loadBytes() !
+		#elseif js
+		// directly get the base64 encoded data from resources
+		var rawData = null;
+		for( res in @:privateAccess haxe.Resource.content )
+			if( res.name == data ) {
+				rawData = res.data;
+				break;
+			}
+		if( rawData == null ) throw "Missing resource " + data;
+		var image = new js.html.Image();
+		image.onload = function(_) {
+			onLoaded(new LoadedBitmap(image));
+		};
+		var extra = "";
+		var bytes = (rawData.length * 6) >> 3;
+		for( i in 0...(3-(bytes*4)%3)%3 )
+			extra += "=";
+		image.src = "data:image/" + extension + ";base64," + rawData + extra;
 		#else
 		throw "TODO";
 		#end
@@ -240,20 +258,18 @@ class EmbedFileSystem #if !macro implements FileSystem #end {
 
 	#end
 
-	public static macro function create( ?basePath : String, ?options : EmbedOptions ) {
-		var f = new FileTree(basePath);
-		if( options != null && options.xbxFilterClass != null ) {
-			var c = Type.resolveClass(options.xbxFilterClass);
-			if( c == null ) haxe.macro.Context.error('Could not resolve ${options.xbxFilterClass}', haxe.macro.Context.currentPos());
-			options.xbxFilter = Reflect.field(c, "run");
-		}
+	public static macro function create( ?basePath : String, ?options : hxd.res.EmbedOptions ) {
+		var f = new hxd.res.FileTree(basePath);
 		var data = f.embed(options);
 		var sdata = haxe.Serializer.run(data.tree);
 		var types = {
 			expr : haxe.macro.Expr.ExprDef.EBlock([for( t in data.types ) haxe.macro.MacroStringTools.toFieldExpr(t.split("."))]),
 			pos : haxe.macro.Context.currentPos(),
 		};
-		return macro { $types; @:privateAccess new hxd.res.EmbedFileSystem(haxe.Unserializer.run($v { sdata } )); };
+		return macro { $types; @:privateAccess new hxd.fs.EmbedFileSystem(haxe.Unserializer.run($v { sdata } )); };
+	}
+
+	public function dispose() {
 	}
 
 }
