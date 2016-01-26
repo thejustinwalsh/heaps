@@ -1,5 +1,5 @@
 package hxd.fmt.pak;
-import hxd.res.FileEntry;
+import hxd.fs.FileEntry;
 #if air3
 import hxd.impl.Air3File;
 #elseif sys
@@ -150,7 +150,7 @@ private class PakEntry extends FileEntry {
 
 }
 
-class FileSystem implements hxd.res.FileSystem {
+class FileSystem implements hxd.fs.FileSystem {
 
 	var root : PakEntry;
 	var dict : Map<String,PakEntry>;

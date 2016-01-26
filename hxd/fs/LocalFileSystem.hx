@@ -1,4 +1,4 @@
-package hxd.res;
+package hxd.fs;
 
 #if (air3 || sys)
 

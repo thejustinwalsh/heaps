@@ -1,9 +1,9 @@
-package hxd.res;
+package hxd.fs;
 
 #if !macro
 
-@:allow(hxd.res.EmbedFileSystem)
-@:access(hxd.res.EmbedFileSystem)
+@:allow(hxd.fs.EmbedFileSystem)
+@:access(hxd.fs.EmbedFileSystem)
 private class EmbedEntry extends FileEntry {
 
 	var fs : EmbedFileSystem;
