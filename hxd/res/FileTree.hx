@@ -27,6 +27,7 @@ class FileTree {
 		ignoredExt.set("gal", true); // graphics gale source
 		ignoredExt.set("lch", true); // labchirp source
 		ignoredExt.set("fla", true); // Adobe flash
+		ignoredExt.set("ogg", true); // Adobe flash
 		pairedExt = new Map();
 		pairedExt.set("fnt", ["png"]);
 		pairedExt.set("fbx", ["png"]);
