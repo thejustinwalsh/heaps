@@ -143,8 +143,10 @@ class Reader {
 			m.culling = CULLING[i.readByte()];
 			m.killAlpha = i.readFloat();
 			if( m.killAlpha == 1 ) m.killAlpha = null;
-			if( m.props != null && m.props.indexOf(HasMaterialFlags) >= 0 )
+			if( m.props != null && m.props.indexOf(HasMaterialFlags) >= 0 ) {
 				m.flags = haxe.EnumFlags.ofInt(i.readInt32());
+				if( m.flags.has(HasNormalMap) ) m.normalMap = readName();
+			}
 			d.materials.push(m);
 		}
 

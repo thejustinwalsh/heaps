@@ -124,6 +124,7 @@ enum MaterialFlag {
 	ReceiveShadows;
 	TextureWrap;
 	IsVolumeDecal;
+	HasNormalMap;
 }
 
 class Material {
@@ -143,6 +144,7 @@ class Material {
 	public var culling : h3d.mat.Data.Face;
 	public var killAlpha : Null<Float>;
 	public var flags : haxe.EnumFlags<MaterialFlag>;
+	public var normalMap : String;
 
 	public function new() {
 	}

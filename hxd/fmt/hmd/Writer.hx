@@ -134,8 +134,11 @@ class Writer {
 			out.writeByte(m.blendMode.getIndex());
 			out.writeByte(m.culling.getIndex());
 			writeFloat(m.killAlpha == null ? 1 : m.killAlpha);
-			if( m.props != null && m.props.indexOf(HasMaterialFlags) >= 0 )
+			if( m.props != null && m.props.indexOf(HasMaterialFlags) >= 0 ) {
+				if( m.normalMap != null ) m.flags.set(HasNormalMap) else m.flags.unset(HasNormalMap);
 				out.writeInt32(m.flags.toInt());
+				if( m.normalMap != null ) writeName(m.normalMap);
+			}
 		}
 
 		out.writeInt32(d.models.length);

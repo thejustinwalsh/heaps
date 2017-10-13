@@ -266,6 +266,10 @@ class Library {
 			mat.texture = loadTexture(m.diffuseTexture);
 			if( mat.texture == null ) mat.texture = h3d.mat.Texture.fromColor(0xFF00FF);
 		}
+		if( m.normalMap != null ) {
+			var normal = loadTexture(m.normalMap);
+			if( normal != null ) mat.normalMap = normal;
+		}
 		mat.blendMode = m.blendMode;
 		mat.mainPass.culling = m.culling;
 		if( m.killAlpha != null ) {
